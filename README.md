@@ -5,11 +5,12 @@ One command to deploy Enferno-based Flask apps with automatic SSL.
 ## Quick Start
 
 ```bash
-# Interactive
-curl -sSL https://raw.githubusercontent.com/level09/ignite/main/ignite.sh | sudo bash
+# One-liner
+curl -sSL https://raw.githubusercontent.com/level09/ignite/main/ignite.sh | sudo DOMAIN=app.example.com bash
 
-# Non-interactive
-curl -sSL https://raw.githubusercontent.com/level09/ignite/main/ignite.sh | DOMAIN=app.example.com sudo bash
+# Or download and run interactively
+wget https://raw.githubusercontent.com/level09/ignite/main/ignite.sh
+sudo bash ignite.sh
 ```
 
 ## What It Does

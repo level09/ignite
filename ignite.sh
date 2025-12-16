@@ -365,6 +365,13 @@ main() {
 
     # Check if interactive mode (no DOMAIN set)
     if [ -z "$DOMAIN" ]; then
+        # Can't do interactive if stdin is not a terminal (e.g., curl | bash)
+        if [ ! -t 0 ]; then
+            echo -e "${RED}Error:${NC} DOMAIN is required when running non-interactively"
+            echo ""
+            echo "Usage: curl -sSL https://raw.githubusercontent.com/level09/ignite/main/ignite.sh | sudo DOMAIN=example.com bash"
+            exit 1
+        fi
         interactive_setup
     else
         header
