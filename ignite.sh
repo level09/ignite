@@ -134,6 +134,27 @@ create_user() {
     step_done
 }
 
+# Setup SSH access for app user
+setup_ssh() {
+    step "Setting up SSH access"
+    local user_ssh="/home/${APP_USER}/.ssh"
+    mkdir -p "$user_ssh"
+
+    # Copy root's authorized keys if they exist
+    if [ -f /root/.ssh/authorized_keys ]; then
+        cp /root/.ssh/authorized_keys "$user_ssh/"
+    fi
+
+    chown -R "${APP_USER}:${APP_USER}" "$user_ssh"
+    chmod 700 "$user_ssh"
+    chmod 600 "$user_ssh/authorized_keys" 2>/dev/null || true
+
+    # Add to sudoers (passwordless)
+    echo "${APP_USER} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${APP_USER}"
+    chmod 440 "/etc/sudoers.d/${APP_USER}"
+    step_done
+}
+
 # Clone repository
 clone_repo() {
     step "Cloning repository"
@@ -352,6 +373,7 @@ success_message() {
     echo "────────────────────────────────────────"
     echo -e "${GREEN}${BOLD}🚀 Deployed!${NC} ${url}"
     echo ""
+    echo -e "   ${BOLD}SSH:${NC} ssh ${APP_USER}@${DOMAIN}"
     echo -e "   ${BOLD}Email:${NC} ${ADMIN_EMAIL}"
     echo -e "   ${BOLD}Password:${NC} (saved to /home/${APP_USER}/.credentials)"
     echo "────────────────────────────────────────"
@@ -361,7 +383,7 @@ success_message() {
 # Main
 main() {
     CURRENT_STEP=0
-    TOTAL_STEPS=14
+    TOTAL_STEPS=15
 
     # Check if interactive mode (no DOMAIN set)
     if [ -z "$DOMAIN" ]; then
@@ -384,6 +406,7 @@ main() {
     setup_redis
     install_postgres
     create_user
+    setup_ssh
     clone_repo
     setup_python
     generate_env

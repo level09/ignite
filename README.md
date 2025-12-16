@@ -21,6 +21,7 @@ sudo bash ignite.sh
 - Redis for sessions and Celery
 - systemd services with auto-restart
 - UFW firewall (ports 22, 80, 443)
+- SSH access with sudo for app user
 
 ## Configuration
 
@@ -56,6 +57,7 @@ DOMAIN=localhost SKIP_SSL=true ./ignite.sh
 ## After Deployment
 
 - App: `https://your-domain.com`
+- SSH: `ssh {user}@your-domain.com` (uses your existing SSH key)
 - Credentials: `/home/{user}/.credentials`
 - Logs: `journalctl -u {domain}.service`
 
