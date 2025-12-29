@@ -23,6 +23,16 @@ sudo bash ignite.sh
 - UFW firewall (ports 22, 80, 443)
 - SSH access with sudo for app user
 
+### Security & Performance (Built-in)
+
+- **HSTS** - Strict Transport Security with 1 year max-age
+- **Security Headers** - X-Frame-Options, X-Content-Type-Options, XSS Protection
+- **Permissions-Policy** - Disables geolocation, microphone, camera by default
+- **Compression** - zstd + gzip for all responses
+- **Static Caching** - 1 year cache for `/static/*` assets
+- **JSON Logging** - Structured logs at `/var/log/caddy/{domain}.log`
+- **Server Header Removed** - Hides Caddy version from responses
+
 ## Configuration
 
 | Variable | Default | Description |
@@ -59,7 +69,26 @@ DOMAIN=localhost SKIP_SSL=true ./ignite.sh
 - App: `https://your-domain.com`
 - SSH: `ssh {user}@your-domain.com` (uses your existing SSH key)
 - Credentials: `/home/{user}/.credentials`
-- Logs: `journalctl -u {domain}.service`
+- App Logs: `journalctl -u {domain}.service`
+- Access Logs: `/var/log/caddy/{domain}.log` (JSON format)
+
+## Optional: Rate Limiting
+
+Caddy supports rate limiting via plugin. To enable:
+
+```bash
+# Install Caddy with rate-limit plugin
+caddy add-package github.com/mholt/caddy-ratelimit
+
+# Edit /etc/caddy/Caddyfile and add inside your domain block:
+rate_limit {remote.ip} 100r/s
+```
+
+For auth endpoints, add stricter limits:
+```caddy
+@auth path /login* /register* /reset*
+rate_limit @auth {remote.ip} 5r/m
+```
 
 ## License
 

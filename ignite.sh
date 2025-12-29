@@ -314,11 +314,44 @@ configure_caddy() {
         # HTTP only (for localhost/IP testing)
         cat > /etc/caddy/Caddyfile << EOF
 :80 {
-    reverse_proxy 127.0.0.1:${PYTHON_PORT}
+    # Compression
+    encode zstd gzip
 
+    # Security headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        -Server
+    }
+
+    # Static files with caching
     handle_path /static/* {
         root * ${APP_DIR}/enferno/static
         file_server
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+
+    # Health check (no logging)
+    handle /health {
+        reverse_proxy 127.0.0.1:${PYTHON_PORT}
+    }
+
+    # App
+    reverse_proxy 127.0.0.1:${PYTHON_PORT} {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/${DOMAIN}.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format json
     }
 }
 EOF
@@ -326,15 +359,54 @@ EOF
         # HTTPS with automatic SSL
         cat > /etc/caddy/Caddyfile << EOF
 ${DOMAIN} {
-    reverse_proxy 127.0.0.1:${PYTHON_PORT}
+    # Compression
+    encode zstd gzip
 
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        -Server
+    }
+
+    # Static files with caching
     handle_path /static/* {
         root * ${APP_DIR}/enferno/static
         file_server
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+
+    # Health check (no logging)
+    handle /health {
+        reverse_proxy 127.0.0.1:${PYTHON_PORT}
+    }
+
+    # App
+    reverse_proxy 127.0.0.1:${PYTHON_PORT} {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/${DOMAIN}.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format json
     }
 }
 EOF
     fi
+
+    # Create log directory
+    mkdir -p /var/log/caddy
+    chown caddy:caddy /var/log/caddy
+
     step_done
 }
 
