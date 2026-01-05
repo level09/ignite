@@ -195,7 +195,7 @@ generate_env() {
 
     local db_uri
     if [ "$DB" = "postgres" ]; then
-        db_uri="postgresql://${APP_USER}@localhost/${APP_USER}"
+        db_uri="postgresql:///${APP_USER}"
     else
         db_uri="sqlite:///enferno.sqlite3"
     fi
