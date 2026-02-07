@@ -5,12 +5,13 @@ One command to deploy Enferno-based Flask apps with automatic SSL.
 ## Quick Start
 
 ```bash
-# One-liner
-curl -sSL https://raw.githubusercontent.com/level09/ignite/main/ignite.sh | sudo DOMAIN=app.example.com bash
+# Download and deploy
+wget -qO /tmp/ignite.sh https://raw.githubusercontent.com/level09/ignite/main/ignite.sh
+sudo DOMAIN=app.example.com bash /tmp/ignite.sh
 
-# Or download and run interactively
-wget https://raw.githubusercontent.com/level09/ignite/main/ignite.sh
-sudo bash ignite.sh
+# Or run interactively
+wget -qO /tmp/ignite.sh https://raw.githubusercontent.com/level09/ignite/main/ignite.sh
+sudo bash /tmp/ignite.sh
 ```
 
 ## What It Does
@@ -21,10 +22,13 @@ sudo bash ignite.sh
 - Redis for sessions and Celery
 - systemd services with auto-restart
 - UFW firewall (ports 22, 80, 443)
-- SSH access with sudo for app user
+- SSH access for app user (scoped to service management)
 
 ### Security & Performance (Built-in)
 
+- **SSH Hardening** - Key-only authentication, password login disabled
+- **fail2ban** - SSH brute-force protection
+- **Scoped Sudo** - App user can only restart its own services
 - **HSTS** - Strict Transport Security with 1 year max-age
 - **Security Headers** - X-Frame-Options, X-Content-Type-Options, XSS Protection
 - **Permissions-Policy** - Disables geolocation, microphone, camera by default

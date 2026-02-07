@@ -92,8 +92,8 @@ install_caddy() {
     step "Installing Caddy"
     if ! command -v caddy &>/dev/null; then
         apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https curl >/dev/null 2>&1
-        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg 2>/dev/null
-        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
+        curl -sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg 2>/dev/null
+        curl -sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
         chmod o+r /usr/share/keyrings/caddy-stable-archive-keyring.gpg
         chmod o+r /etc/apt/sources.list.d/caddy-stable.list
         apt-get update -qq >/dev/null && apt-get install -y -qq caddy >/dev/null 2>&1
@@ -116,7 +116,7 @@ install_postgres() {
         systemctl enable --now postgresql >/dev/null 2>&1
 
         # Create database and user
-        sudo -u postgres createuser -s "$APP_USER" 2>/dev/null || true
+        sudo -u postgres createuser "$APP_USER" 2>/dev/null || true
         sudo -u postgres createdb "$APP_USER" -O "$APP_USER" 2>/dev/null || true
         step_done
     fi
@@ -149,9 +149,12 @@ setup_ssh() {
     chmod 700 "$user_ssh"
     chmod 600 "$user_ssh/authorized_keys" 2>/dev/null || true
 
-    # Add to sudoers (passwordless)
-    echo "${APP_USER} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${APP_USER}"
+    # Sudoers: only allow managing app services
+    echo "${APP_USER} ALL=(ALL) NOPASSWD: /bin/systemctl start ${DOMAIN}.service, /bin/systemctl stop ${DOMAIN}.service, /bin/systemctl restart ${DOMAIN}.service, /bin/systemctl status ${DOMAIN}.service, /bin/systemctl start ${DOMAIN}-celery.service, /bin/systemctl stop ${DOMAIN}-celery.service, /bin/systemctl restart ${DOMAIN}-celery.service, /bin/systemctl status ${DOMAIN}-celery.service" > "/etc/sudoers.d/${APP_USER}"
     chmod 440 "/etc/sudoers.d/${APP_USER}"
+
+    # Allow app user to read logs without sudo
+    usermod -aG systemd-journal "$APP_USER" 2>/dev/null || true
     step_done
 }
 
@@ -410,6 +413,21 @@ EOF
     step_done
 }
 
+# Harden SSH
+harden_ssh() {
+    step "Hardening SSH"
+
+    # Key-only authentication
+    sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+    sed -i 's/^#\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config
+    systemctl restart ssh >/dev/null 2>&1
+
+    # Brute-force protection
+    apt-get install -y -qq fail2ban >/dev/null 2>&1
+    systemctl enable --now fail2ban >/dev/null 2>&1
+    step_done
+}
+
 # Setup firewall
 setup_firewall() {
     step "Configuring firewall"
@@ -455,7 +473,7 @@ success_message() {
 # Main
 main() {
     CURRENT_STEP=0
-    TOTAL_STEPS=15
+    TOTAL_STEPS=16
 
     # Check if interactive mode (no DOMAIN set)
     if [ -z "$DOMAIN" ]; then
@@ -463,7 +481,7 @@ main() {
         if [ ! -t 0 ]; then
             echo -e "${RED}Error:${NC} DOMAIN is required when running non-interactively"
             echo ""
-            echo "Usage: curl -sSL https://raw.githubusercontent.com/level09/ignite/main/ignite.sh | sudo DOMAIN=example.com bash"
+            echo "Usage: wget -qO /tmp/ignite.sh https://raw.githubusercontent.com/level09/ignite/main/ignite.sh && sudo DOMAIN=example.com bash /tmp/ignite.sh"
             exit 1
         fi
         interactive_setup
@@ -487,6 +505,7 @@ main() {
     create_uwsgi_config
     create_systemd_service
     configure_caddy
+    harden_ssh
     setup_firewall
     start_services
 
